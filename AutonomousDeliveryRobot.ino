@@ -18,11 +18,6 @@
 #include <SPI.h>
 #include "SevSeg.h"
 
-VL53L1X distanceSensor;
-VL53L1X myLeftSensor;
-VL53L1X myLeftSensor2;
-SevSeg sevSeg; 
-
 /* Instance variables */
 /* Type in the destinations here.*/
 const String locations[] = {"F3", "E5", "G4"};
@@ -46,6 +41,12 @@ const int MOTOR_LEFT_IN1 = 26; // Backward
 const int MOTOR_LEFT_IN2 = 25; // Forward
 const int MOTOR_LEFT_ENA = 2; // Speed
 
+/* Sensors */
+VL53L1X distanceSensor;
+VL53L1X myLeftSensor;
+VL53L1X myLeftSensor2;
+SevSeg sevSeg; 
+
 // Ultrasonic sensor
 const float TEMPERATURE = 22;//(72 - 32) * 5 / 9;
 // Front sensors.
@@ -66,11 +67,11 @@ const int pinSDA = 40;
 const int pinSCL = 41;
 const int THRESHOLD = 50;
 byte ledColor[] = {0, 0, 0, 0, 0, 0};
-byte ledColor2[] = {100, 100, 10, 0, 0, 100};
 uint16_t lux = 0;
 CustomizedTCS tcs = CustomizedTCS(pinSDA, pinSCL);
 uint8_t redValue, greenValue, blueValue;
 
+/* Time constants */
 const int DELAY_TIME = 5000;
 const int TURN_INTERVAL = 560;
 const int AVOID_INTERVAL = 2000;
@@ -89,6 +90,7 @@ const double LOCATION_MARGIN_TURN = 0.03;
 const double TURN_MARGIN = 0.035;
 
 /* Current location and direction. */
+/* The bottom left corner is the origin (0, 0), and the map is in the first quadrant of a cartesian coordinate system. */
 double currentX = 0;
 double currentY = 0;
 int currentDirec[] = {0, 1}; // This is a unit vector.
@@ -190,20 +192,17 @@ void setupSevSeg() {
  * @return
  */
 void goToNextPlace(int placeNumber) {
+
+  /* Get the information from the map. */
   NextPlace myNextPlace = NextPlace(locations[placeNumber], MAP_DATA);
   goalX = myNextPlace.getX();
   goalY = myNextPlace.getY();
   String goalName = myNextPlace.toString();
   
   while(true) {
-    
-    /* Sensor readings */
-    backSensor = readBackSensor(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_VER;
-    leftSensor = readLeftSensor(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_HOR;
-    leftSensor2 = readLeftSensor2(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_HOR;
-    rightSensor = readRightSensor(TEMPERATURE) - WALL_GAP;
 
     /* Update the current location. */
+    /* Sensor readings are done in this function. */
     updateLocation();
 
     /* Break when it arrives at the destination. */
@@ -271,22 +270,21 @@ void goToNextPlace(int placeNumber) {
 
 /* Method: goToCustormer() */
 void goToCustomer(int placeNumber) {
+
+  /* Get the information from the map. */
   NextPlace myNextPlace = NextPlace(locations[placeNumber], MAP_DATA);
   goalX = myNextPlace.getX();
   goalY = myNextPlace.getY();
   String goalName = myNextPlace.toString();
 
   while(true) {
-    /* Sensor readings */
-    backSensor = readBackSensor(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_VER;;
-    leftSensor = readLeftSensor(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_HOR;
-    leftSensor2 = readLeftSensor2(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_HOR;;
-    rightSensor = readRightSensor(TEMPERATURE) - WALL_GAP;
     
     /* Update the current location. */
+    /* Sensor readings are done in this function. */
     updateLocation();
     
     /* Break when it arrives at the destination. */
+    /* Use a larger margin to avoid running over the customer. */
     if (dr < 0.10) {
       stopMoving();
       break;
@@ -295,6 +293,7 @@ void goToCustomer(int placeNumber) {
     /* Move forward if the current direction is correct. */
     /* Turn 90 degrees if the currect direcion is not correct. */
     /* Avoid turning 180 degrees. */
+    /* Break if the customer is in the front. */
     if (currentDirec[1] == 1 && dy > LOCATION_MARGIN_FORWARD) {
       if (isCustomer()) {
         stopMoving();
@@ -334,6 +333,7 @@ void goToCustomer(int placeNumber) {
 }
 
 /* Method: turnToAvoid() */
+/* Always turn right unless the wall is on the right side. */
 void turnToAvoid() {
   if (currentDirec[1] == 1) {
     if (isRightWall()) {
@@ -379,6 +379,7 @@ void turnToAvoid() {
 }
 
 /* Method: turn90() */
+/* Turn left or right according to the location of the destination. */
 void turn90() {
   if (currentDirec[1] == 1 && dx > LOCATION_MARGIN_TURN) {
     turnRight();
@@ -412,11 +413,15 @@ void turn90() {
     turnLeft();
     currentDirec[0] = 0;
     currentDirec[1] = -1;
+  } else { // If the destination is directly behind the robot, just turn and move for a certain distance.
+    turnToAvoid();
   }
 }
 
 /* Method: moveForward() */
 void moveForward() {
+
+  /* Use the difference between the two sensors to adjust the motor speed. */
   double left = 0;
   double right = 0;
   adjustment = (leftSensor2 - leftSensor) * 200;
@@ -459,6 +464,7 @@ void smoothStart() {
 }
 
 /* Method: moveTillClear() */
+/* Use a timer to move away from the obstacle until the timer stops. */
 void moveTillClear() {
   previousMillis = millis();
   while(true) {
@@ -475,7 +481,8 @@ void moveTillClear() {
 }
 
 /* Method: turnRight() */
-/* Using a timer */
+/* Use a timer to force the robot to turn until the timer stops, to skip the first few sensor readings. */
+/* The robot stops turning according to the sensor readings. */
 void turnRight() {
   previousMillis = millis(); // Start timing.
   double back = 0;
@@ -507,7 +514,8 @@ void keepTurningRight() {
 }
 
 /* Method: turnLeft() */
-/* Using a timer. */
+/* Use a timer to force the robot to turn until the timer stops, to skip the first few sensor readings. */
+/* The robot stops turning according to the sensor readings. */
 void turnLeft() {
   previousMillis = millis(); // Start timing.
   double front = 0;
@@ -561,6 +569,7 @@ void keepMoving(double speedLeft, double speedRight) {
 }
 
 /* Method: displayLocation() */
+/* Call this function when the robot arrives the destination. */
 void displayLocation(String str) {
   int strLen = str.length() + 1;
   char charArray[strLen];
@@ -577,6 +586,7 @@ void displayLocation(String str) {
 }
 
 /* Method: displayCurrentLocation() */
+/* Call this function when the robot comes to a stop. */
 void displayCurrentLocation(String str) {
   int strLen = str.length() + 1;
   char charArray[strLen];
@@ -619,7 +629,7 @@ void displayColor(int i) {
 
 /* Method: isCustomer */
 boolean isCustomer() {
-  if (readFrontLowerSensor(TEMPERATURE) <= 2.75 / 39.37) { // 1.0 inches
+  if (readFrontLowerSensor(TEMPERATURE) <= 2.75 / 39.37) { // 2.75 inches
     return true;
   } else {
     return false;
@@ -629,7 +639,7 @@ boolean isCustomer() {
 /* Method: isFrontClear() */
 boolean isFrontClear() {
   frontLowerSensor = readFrontLowerSensor(TEMPERATURE);
-  if (frontLowerSensor <= 8 / 39.37 && frontLowerSensor > 0) { // 2.5 inches
+  if (frontLowerSensor <= 8 / 39.37 && frontLowerSensor > 0) { // 8 inches
     return false;
   } else {
     return true;
@@ -638,7 +648,7 @@ boolean isFrontClear() {
 
 /* Method: isRightWall() */
 boolean isRightWall() {
-  if (rightSensor <= 1.0 / 3.2808 && rightSensor > 0) {
+  if (rightSensor <= 1.0 / 3.2808 && rightSensor > 0) { // Ignore the negtive readings.
     return true;
   } else {
     return false;
@@ -648,6 +658,13 @@ boolean isRightWall() {
 /* Method: updateLocation() */
 /* This is the color sensor's location. */
 void updateLocation() {
+
+  /* Sensor Readings */
+  backSensor = readBackSensor(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_VER;
+  leftSensor = readLeftSensor(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_HOR;
+  leftSensor2 = readLeftSensor2(TEMPERATURE) - WALL_GAP + COLORSENSOR_POS_HOR;
+  rightSensor = readRightSensor(TEMPERATURE) - WALL_GAP;
+  
   if (currentDirec[1] == 1) {
     currentY = backSensor;
     currentX = leftSensor;
