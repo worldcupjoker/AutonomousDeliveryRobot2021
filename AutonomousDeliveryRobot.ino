@@ -1,5 +1,5 @@
 /*
- * Copyright, 2021, (Ted) Zhongkun Zhan, all rights reserved
+ * Copyright, 2021, (Ted) Zhongkun Zhan, Omar W. Hussaein, Santiago Guevara Ocana, all rights reserved
  * File: DeliveryRobot.ino
  * ----------------------
  * Name: Omar W. Hussaein, Santiago Guevara Ocana, (Ted) Zhongkun Zhan
