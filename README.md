@@ -10,4 +10,4 @@ The final robot design is presented below.
  
 ![image](https://user-images.githubusercontent.com/73008183/118210070-e13cef00-b437-11eb-8c40-3561aeda1bf4.png)
  
-The robot plans its own route while it is in motion after each turns, detects and avoids obstacles that block its path, and redesign its own route avoiding the obstacles.
+The robot plans its own route while it is in motion after each turns, detects and avoids obstacles that block its path, and redesign its own route after avoiding the obstacles.
