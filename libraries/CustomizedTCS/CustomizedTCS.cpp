@@ -7,7 +7,7 @@ CustomizedTCS::CustomizedTCS(int pinSDA, int pinSCL) {
   tcs = Adafruit_TCS34725softi2c(TCS34725_INTEGRATIONTIME_101MS, TCS34725_GAIN_4X, pinSDA, pinSCL);
 
   // Initialize the gamma table
-  for (int i=0; i<256; i++) {
+  for (int i = 0; i < 256; i++) {
     float x = i;
     x /= 255;
     x = x * x * sqrt(x); // powf(x, 2.5) does not work in this loop. Don't know why.
